@@ -1,0 +1,2 @@
+class UsdaFood < ApplicationRecord
+end

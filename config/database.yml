@@ -1,0 +1,24 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: 5
+
+server: &server
+  username: maksim
+  password: 1011
+  host: localhost
+  port: 5432
+
+development:
+  <<: *default
+  <<: *server
+  database: food_development
+
+test:
+  <<: *default
+  <<: *server
+  database: food_test
+
+production:
+  <<: *default
+  url: <%= ENV["DATABASE_URL"] %>

@@ -1,0 +1,2 @@
+class UsdaFootnote < ApplicationRecord
+end

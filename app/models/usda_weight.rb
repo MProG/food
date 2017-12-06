@@ -1,0 +1,2 @@
+class UsdaWeight < ApplicationRecord
+end

@@ -1,0 +1,2 @@
+class UsdaNutrient < ApplicationRecord
+end
