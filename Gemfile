@@ -17,6 +17,10 @@ gem 'jbuilder', '~> 2.5'
 gem 'usda-nutrient-database'
 gem 'activerecord-import'
 
+gem "sidekiq", '~> 4.2'
+gem 'whenever', require: false
+gem "roo", "~> 2.7.0"
+
 group :development, :test do
   gem 'byebug', platforms: [:mri, :mingw, :x64_mingw]
   gem 'capybara', '~> 2.13'

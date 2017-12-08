@@ -1,2 +1,0 @@
-class UsdaSourceCode < ApplicationRecord
-end

@@ -7,67 +7,63 @@ class UploadService
   UPC_SPLITTER = ", UPC: "
 
   def get_all_product_names
-    data = []
-    page = 0
-    
-    while true
-      step = make_food_list_request(page)["list"]["item"]
-      break if step.empty?
-      data += step
-      page += 1
-    end
+    data = collect_data('f')
     create_csv_food(data)
   end
 
   def get_all_nutrients_names
-    data = []
-    page = 0
-    
-    while true
-      step = make_nutrient_list_request(page)["list"]["item"]
-      break if step.empty?
-      data += step
-      page += 1
-    end
+    data = collect_data('n')
     create_csv_nutrient(data)
   end
 
-  def nutrient_food_by_id(id)
+  def get_food_data(food)
+    data = make_request(food_path(food.dnbo))
+    return false unless data["report"]
+    add_food_to_csv(data["report"]["food"], food)
+  end
+
+  private
+
+  def collect_data(product_type)
     data = []
     page = 0
     
     while true
-      step = nutrient_food_list_request(page, id)["report"]["foods"]
+      url_string = list_path(product_type, page)
+      step = make_request(url_string)["list"]["item"]
       break if step.empty?
       data += step
       page += 1
     end
-    
-    nutrient_csv(data, id)
+    data
   end
 
-
-  private
-
-  def make_food_list_request(page)
-    url_string = "https://api.nal.usda.gov/ndb/list?format=json&lt=f&sort=n&max=#{VALUES_BY_PAGE}&offset=#{VALUES_BY_PAGE*page}&api_key=#{API_KEY}"
+  def make_request(url_string)
     url = URI.parse(url_string)
-    result = JSON.parse(Net::HTTP.get(url))
+    JSON.parse(Net::HTTP.get(url))
   end
 
-  def make_nutrient_list_request(page)
-    url_string = "https://api.nal.usda.gov/ndb/list?format=json&lt=n&sort=n&max=#{VALUES_BY_PAGE}&offset=#{VALUES_BY_PAGE*page}&api_key=#{API_KEY}"
-    url = URI.parse(url_string)
-    result = JSON.parse(Net::HTTP.get(url))
+  def list_path(field_name, page)
+    "https://api.nal.usda.gov/ndb/list?format=json&lt=#{field_name}&sort=id&max=#{VALUES_BY_PAGE}&offset=#{VALUES_BY_PAGE*page}&api_key=#{API_KEY}"
   end
 
-  def nutrient_food_list_request(page, id)
-    url_string = "https://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=#{API_KEY}&nutrients=#{id}&max=#{NUTRIENTS_VALUES_BY_PAGE}&offset=#{NUTRIENTS_VALUES_BY_PAGE*page}"
-    url = URI.parse(url_string)
-    result = JSON.parse(Net::HTTP.get(url))
+  def food_path(food_id)
+    "https://api.nal.usda.gov/ndb/reports/?ndbno=#{food_id}&type=b&format=json&api_key=#{API_KEY}"
   end
 
+  def add_food(data)
+    attributes = %w{food_id name upc}
 
+    CSV.open("foods.csv", "wb") do |csv|
+      csv << attributes
+
+      data.each do |food|
+
+        food_name, food_upc = food["name"].split(UPC_SPLITTER)
+        csv << [food["id"], food_name, food_upc] if food_upc.present?
+      end
+    end
+  end
 
   def create_csv_food(data)
     attributes = %w{food_id name upc}
@@ -76,8 +72,9 @@ class UploadService
       csv << attributes
 
       data.each do |food|
-        food_name, food_upc = food.split(UPC_SPLITTER)
-        csv << [food["id"], food_name, upc]
+
+        food_name, food_upc = food["name"].split(UPC_SPLITTER)
+        csv << [food["id"], food_name, food_upc] if food_upc.present?
       end
     end
   end
@@ -88,22 +85,29 @@ class UploadService
     CSV.open("nutrients.csv", "wb") do |csv|
       csv << attributes
 
-      data.sort{|x,y| x["id"].to_i <=> y["id"].to_i }.each do |food|
+      data.each do |food|
         csv << [food["id"], food["name"]]
       end
     end
   end
 
-  def nutrient_csv(data, id)
-    attributes = %w{nutrient_id m_100 ndbno weight measure unit value}
+  def add_food_to_csv(data, food)
+    nutrients_ndbo = Nutrient.all.map(&:dnbo)
 
-    CSV.open("nutrient_#{id}.csv", "wb") do |csv|
-      csv << attributes
+    attributes = %w{ndbno name upc ru} + nutrients_ndbo
+    file_name = "product_#{Date.today.to_s}.csv"
+    new_file = File.file?(file_name)
 
-      data.each do |food|
-        nutrient = food["nutrients"][0]
-        csv << [id, nutrient["gm"], food["ndbno"], food["weight"], food["measure"], nutrient["unit"], nutrient["value"]]
+    CSV.open(file_name, "a+") do |csv|
+      csv << attributes unless new_file
+      nutriends_values = Array.new(Nutrient.count, '')
+
+      data["nutrients"].each do |el|
+        nutrient_index = nutrients_ndbo.index(el['nutrient_id'])
+        nutriends_values[nutrient_index] = el['value']
       end
+
+      csv << [food.dnbo, food.name, food.upc, data['ru']] + nutriends_values
     end
   end
 end

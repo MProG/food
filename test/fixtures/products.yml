@@ -1,0 +1,13 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  name: MyString
+  dnbo: MyString
+  upc: MyString
+  imported: false
+
+two:
+  name: MyString
+  dnbo: MyString
+  upc: MyString
+  imported: false
