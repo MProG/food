@@ -51,19 +51,7 @@ class UploadService
     "https://api.nal.usda.gov/ndb/reports/?ndbno=#{food_id}&type=b&format=json&api_key=#{API_KEY}"
   end
 
-  def add_food(data)
-    attributes = %w{food_id name upc}
-
-    CSV.open("foods.csv", "wb") do |csv|
-      csv << attributes
-
-      data.each do |food|
-
-        food_name, food_upc = food["name"].split(UPC_SPLITTER)
-        csv << [food["id"], food_name, food_upc] if food_upc.present?
-      end
-    end
-  end
+  # https://api.nal.usda.gov/ndb/reports/?ndbno=45010022&type=b&format=json&api_key=MAdy5P4GGA0dZnsy2Tgzvgby09YyDhNo2UkXL4BG
 
   def create_csv_food(data)
     attributes = %w{food_id name upc}
@@ -74,7 +62,7 @@ class UploadService
       data.each do |food|
 
         food_name, food_upc = food["name"].split(UPC_SPLITTER)
-        csv << [food["id"], food_name, food_upc] if food_upc.present?
+        csv << [food["id"], food_name, food_upc] if food_upc.present? || food["id"].length > "09514".length
       end
     end
   end
@@ -104,10 +92,20 @@ class UploadService
 
       data["nutrients"].each do |el|
         nutrient_index = nutrients_ndbo.index(el['nutrient_id'])
-        nutriends_values[nutrient_index] = el['value']
+        nutriends_values[nutrient_index] = "#{el['value']}~#{el['unit']}"
       end
 
       csv << [food.dnbo, food.name, food.upc, data['ru']] + nutriends_values
+    end
+
+    portion_new_file = File.file?('portions.csv')
+    CSV.open("portions.csv", "a+") do |csv|
+      csv << %w{ndbno name upc ru portion_label eqv eunit qty} unless portion_new_file
+
+      portions_el = data["nutrients"].first["measures"][0]
+      portion_array = [portions_el["label"], portions_el["eqv"], portions_el["eunit"], portions_el["qty"]]
+
+      csv << [food.dnbo, food.name, food.upc, data['ru']] + portion_array
     end
   end
 end
